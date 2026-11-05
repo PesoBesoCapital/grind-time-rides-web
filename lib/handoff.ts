@@ -3,6 +3,9 @@
 import { ADD_ONS, findExperience } from "./experiences";
 import { EVENT_OPTIONS } from "./catalog";
 
+/** Business-card codes of the Grind Time team (Porter migration 202611050009, porter_sellers). */
+export const TEAM_CODES: Record<string, string> = { CESAR: "Cesar", RYAN: "Ryan" };
+
 export type Handoff = { experience?: string; addOns: string[]; referral?: string; occasion?: string; date?: string; guests?: string };
 
 export function buildHandoff(params: Record<string, string>): Handoff {
@@ -20,7 +23,7 @@ export function handoffNote(h: Handoff): string {
   const parts = [
     h.experience && `Experience: ${h.experience}`,
     h.addOns.length > 0 && `Extras: ${h.addOns.join(", ")}`,
-    h.referral && `Referral code: ${h.referral}`,
+    h.referral && (TEAM_CODES[h.referral] ? `Referred by ${TEAM_CODES[h.referral]} (code ${h.referral})` : `Referral code: ${h.referral}`),
   ].filter(Boolean);
   return parts.join(" · ");
 }

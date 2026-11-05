@@ -9,6 +9,10 @@ describe("Moovs hand-off", () => {
     expect(h.occasion).toBe("Quinceañera");
     expect(h.guests).toBe("18");
   });
+  it("credits a team member's business-card code by name", () => {
+    expect(handoffNote(buildHandoff({ ref: "cesar" }))).toBe("Referred by Cesar (code CESAR)");
+    expect(handoffNote(buildHandoff({ experience: "birthday-bash", ref: "RYAN" }))).toBe("Experience: Birthday Bash · Referred by Ryan (code RYAN)");
+  });
   it("is empty when there's nothing to pass on, and ignores junk", () => {
     expect(handoffNote(buildHandoff({}))).toBe("");
     const h = buildHandoff({ experience: "<script>", ref: "x", date: "tomorrow", passengers: "lots" });
