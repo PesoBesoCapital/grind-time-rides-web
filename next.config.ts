@@ -7,6 +7,7 @@ const csp = [
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",
+  "frame-src https://customer.moovs.app",   // Ryan's Moovs request form, nothing else
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
