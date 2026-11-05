@@ -18,12 +18,14 @@ const porter = createServer((req, res) => {
 const PORTER = `http://127.0.0.1:${porter.address().port}`;
 const PORT = 3917;
 const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT)], {
-  env: { ...process.env, QUOTE_MODE: "porter", PORTER_SUPABASE_URL: PORTER, PORTER_SUPABASE_ANON_KEY: "anon", PORTER_INTAKE_SOURCE: "grindtimerides-web", PORTER_INTAKE_TOKEN: "smoke-token" },
+  env: { ...process.env, QUOTE_MODE: "porter", DEMAND_COUNTS: "on", PORTER_SUPABASE_URL: PORTER, PORTER_SUPABASE_ANON_KEY: "anon", PORTER_INTAKE_SOURCE: "grindtimerides-web", PORTER_INTAKE_TOKEN: "smoke-token" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 const BASE = `http://localhost:${PORT}`;
 for (let i = 0; i < 60; i++) { try { if ((await fetch(BASE)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
 
+const quoteCalls = () => received.filter((r) => r.url === "/rest/v1/rpc/porter_intake_quote_request");
+const demandCalls = () => received.filter((r) => r.url === "/rest/v1/rpc/porter_record_site_demand");
 const failures = [];
 const check = (cond, msg) => { if (!cond) failures.push(msg); };
 const browser = await chromium.launch();
@@ -60,12 +62,12 @@ try {
     check((await over()) <= 1, `${label}: quote page overflows sideways`);
 
     // Empty submit shows field errors and sends nothing.
-    const before = received.length;
+    const before = quoteCalls().length;
     await page.getByRole("button", { name: "Request my quote" }).click();
     await page.getByText("Check the highlighted fields.").waitFor();
     check(await page.getByText("Choose a vehicle or service.").isVisible(), `${label}: missing service error`);
     check(await page.getByText("We need your OK").isVisible(), `${label}: missing consent error`);
-    check(received.length === before, `${label}: invalid form reached Porter`);
+    check(quoteCalls().length === before, `${label}: invalid form reached Porter`);
 
     // Fill and send.
     const d = new Date(); d.setDate(d.getDate() + 45);
@@ -82,7 +84,7 @@ try {
     check(await page.getByText("Grind Time will text you").isVisible(), `${label}: confirmation should follow preferred contact`);
     if (viewport.width < 500) await page.screenshot({ path: "smoke-quote-done-390.png" });
 
-    const sent = received.at(-1);
+    const sent = quoteCalls().at(-1);
     check(sent.url === "/rest/v1/rpc/porter_intake_quote_request", `${label}: wrong Porter endpoint ${sent.url}`);
     check(sent.body.p_token === "smoke-token" && sent.headers.apikey === "anon", `${label}: credentials not sent server-side`);
     check(sent.body.p_payload.contact_phone === "+12245550100", `${label}: phone not normalised`);
@@ -115,17 +117,28 @@ try {
     await page.waitForTimeout(3100);
     await page.getByRole("button", { name: "Request my quote" }).click();
     await page.getByText("GT-261205-SMOKE").waitFor();
-    const sent2 = received.at(-1).body.p_payload;
+    const sent2 = quoteCalls().at(-1).body.p_payload;
     check(sent2.package_key === "quince-royal" && sent2.referral_code === "MARI7Q2K" && sent2.event_type === "quinceanera", `${label}: experience/referral not sent: ${JSON.stringify(sent2)}`);
     check(JSON.stringify(sent2.add_ons) === JSON.stringify(["red_carpet", "decor"]), `${label}: add-ons not sent: ${JSON.stringify(sent2.add_ons)}`);
     console.log(`ok  ${label}: home, prefill, validation, submit -> Porter`);
     console.log(`ok  ${label}: experiences -> Quince Royal -> quote with add-ons and referral -> Porter`);
+    // Anonymous demand counts: what reached Porter, and nothing personal in it.
+    await page.waitForTimeout(800);
+    const counted = demandCalls().flatMap((r) => r.body.p_events.map((e) => e.event + ":" + (e.package_key ?? "")));
+    for (const want of ["home_view:", "experience_view:quince-royal", "quote_open:quince-royal", "referral_arrival:", "quote_open:"]) {
+      check(counted.includes(want), `${label}: demand count ${want} missing (got ${counted.join(", ")})`);
+    }
+    const demandText = JSON.stringify(demandCalls().map((r) => r.body));
+    check(!/MARI|Sofia|555|Mozilla|cookie/i.test(demandText.replace(/"p_token":"smoke-token"/g, "")), `${label}: demand counts must be anonymous: ${demandText}`);
+    check(demandCalls().every((r) => r.body.p_token === "smoke-token" && !("p_payload" in r.body)), `${label}: demand call shape`);
+    console.log(`ok  ${label}: anonymous demand counts (home, experience, quote page, referral visit) -> Porter`);
     await page.close();
   }
   // ---- Moovs mode (the default): /quote embeds Ryan's Moovs request form ----
   app.kill();
   const PORT2 = 3918, BASE2 = `http://localhost:${PORT2}`;
-  const app2 = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT2)], { env: { ...process.env, QUOTE_MODE: "" }, stdio: "ignore" });
+  const app2 = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT2)], { env: { ...process.env, QUOTE_MODE: "", DEMAND_COUNTS: "", PORTER_SUPABASE_URL: PORTER, PORTER_SUPABASE_ANON_KEY: "anon", PORTER_INTAKE_SOURCE: "grindtimerides-web", PORTER_INTAKE_TOKEN: "smoke-token" }, stdio: "ignore" });
+  const demandBefore = demandCalls().length;
   try {
     for (let i = 0; i < 60; i++) { try { if ((await fetch(BASE2)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
     const csp = (await fetch(BASE2 + "/quote")).headers.get("content-security-policy") ?? "";
@@ -157,6 +170,9 @@ try {
       console.log(`ok  ${label}: experience -> quote page embeds Ryan's Moovs form with the hand-off note`);
       await page.close();
     }
+    await new Promise((r) => setTimeout(r, 800));
+    check(demandCalls().length === demandBefore, "preview site (not live, DEMAND_COUNTS off) must not count visits");
+    console.log("ok  preview traffic is not counted");
   } finally { app2.kill(); }
 } finally {
   await browser.close();

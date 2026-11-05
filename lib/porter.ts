@@ -37,3 +37,22 @@ export async function sendToPorter(idempotencyKey: string, payload: Record<strin
   if (!body || body.error === "unauthorized") return { kind: "unavailable" };
   return { kind: "rejected", message: body.error ?? "Request not accepted" };
 }
+
+/** Anonymous demand counts. Fire-and-forget: failures never affect the visitor. */
+export async function sendDemand(events: { event: string; package_key?: string }[], fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  const url = process.env.PORTER_SUPABASE_URL, anon = process.env.PORTER_SUPABASE_ANON_KEY;
+  const source = process.env.PORTER_INTAKE_SOURCE, token = process.env.PORTER_INTAKE_TOKEN;
+  if (!url || !anon || !source || !token || !events.length) return false;
+  try {
+    const res = await fetchImpl(`${url.replace(/\/$/, "")}/rest/v1/rpc/porter_record_site_demand`, {
+      method: "POST",
+      headers: { "content-type": "application/json", apikey: anon, authorization: `Bearer ${anon}` },
+      body: JSON.stringify({ p_source_key: source, p_token: token, p_events: events }),
+      signal: AbortSignal.timeout(4000),
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

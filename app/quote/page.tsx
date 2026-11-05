@@ -5,6 +5,7 @@ import { MoovsRequest } from "@/components/MoovsRequest";
 import { buildHandoff, handoffNote } from "@/lib/handoff";
 import { EVENT_KEYS, SERVICE_KEYS } from "@/lib/catalog";
 import { findExperience } from "@/lib/experiences";
+import { CountView } from "@/components/CountView";
 
 export const metadata: Metadata = { title: "Get a quote", description: "Request a quote for a party bus, limousine, SUV, DJ or valet service in Chicagoland." };
 
@@ -24,11 +25,16 @@ export default async function QuotePage({ searchParams }: { searchParams: Search
     event_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     passengers: /^\d{1,3}$/.test(pax) ? pax : "",
   };
+  const counts = [
+    exp ? { event: "quote_open" as const, package_key: exp.slug } : { event: "quote_open" as const },
+    ...(initial.referral_code ? [{ event: "referral_arrival" as const }] : []),
+  ];
   if (quoteMode() === "moovs") {
     const h = buildHandoff({ experience: one(sp.experience), addons: one(sp.addons), ref: one(sp.ref), event: one(sp.event), date, passengers: pax });
     const summary = [h.occasion, h.date, h.guests && `${h.guests} guests`].filter((x): x is string => !!x);
     return (
       <section className="quote-page">
+        <CountView events={counts} />
         <div className="wrap">
           <div className="quote-aside">
             <h1>Get a quote</h1>
@@ -42,6 +48,7 @@ export default async function QuotePage({ searchParams }: { searchParams: Search
   }
   return (
     <section className="quote-page">
+      <CountView events={counts} />
       <div className="wrap">
         <div className="quote-aside">
           <h1>Get a quote</h1>

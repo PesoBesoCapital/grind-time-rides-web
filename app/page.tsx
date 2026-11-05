@@ -3,10 +3,12 @@ import { FLEET, SERVICES } from "@/lib/catalog";
 import { EXPERIENCES, TIER_LABEL, type Tier } from "@/lib/experiences";
 import { BUSINESS } from "@/lib/site";
 import { TicketStart } from "@/components/TicketStart";
+import { CountView } from "@/components/CountView";
 
 export default function Home() {
   return (
     <>
+      <CountView events={[{ event: "home_view" }]} />
       <section className="hero" aria-labelledby="hero-title">
         <div className="wrap">
           <div>
