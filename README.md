@@ -1,0 +1,39 @@
+# Grind Time Rides — website (Porter × Cesar OS, Project PORTER-002)
+
+Customer site for Grind Time Enterprise: browse the fleet and services, request a quote.
+Quote requests go **server-side** to the Porter ops app (Project 001), where Cesar and Ryan follow up.
+
+**Status: preview.** Not live. Every page sends `noindex` and shows a preview banner until
+`NEXT_PUBLIC_SITE_STAGE=live` is set, which happens only after Ryan approves the launch.
+
+## How a quote flows
+1. The customer fills the trip ticket at `/quote`. The form validates as they go.
+2. `POST /api/quote` (server): same-origin check, hidden-field and too-fast spam traps, full
+   validation, then a call to Porter's `porter_intake_quote_request` with a secret intake token.
+3. Porter stores it once (idempotency key = one per filled-in form, so retries and double-clicks
+   can't duplicate), sets a same-day follow-up, and shows it in **Quote requests**.
+4. The customer sees a reference like `GT-261205-AB12C`. Nothing is sent to them automatically.
+
+## Setup (Vercel environment variables, server-only)
+| Name | Value |
+|---|---|
+| `PORTER_SUPABASE_URL` | `https://gleqwdrhhrzclujjatlf.supabase.co` |
+| `PORTER_SUPABASE_ANON_KEY` | Porter's anon/publishable key |
+| `PORTER_INTAKE_SOURCE` | `grindtimerides-web` |
+| `PORTER_INTAKE_TOKEN` | Issued once in Porter: `select porter_admin_create_intake_source('grindtimerides-web','PORTER-002');` |
+| `NEXT_PUBLIC_SITE_STAGE` | `preview` (or `live` after Ryan's sign-off) |
+
+Without the Porter variables the form still renders and tells customers to call or text instead.
+
+## Develop
+```bash
+npm install
+npm run dev            # http://localhost:3000
+npm test               # validation + API route (Porter mocked)
+npm run build && npm run smoke   # full journey in a real browser against a fake Porter
+```
+
+## Before launch (needs Ryan)
+- GTR monogram file (the header uses a text placeholder), vehicle photos, and capacities per vehicle.
+- Verified reviews only, with the "$10 off for a review" wording checked: discounts can't depend on the review being positive.
+- Approve every line of copy. Then point grindtimerides.com to Vercel, keeping the old site as a rollback for 30 days.
