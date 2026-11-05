@@ -31,6 +31,8 @@ try {
   const head = await fetch(BASE);
   check(head.headers.get("x-robots-tag")?.includes("noindex"), "preview must send X-Robots-Tag noindex");
   check((await (await fetch(BASE + "/robots.txt")).text()).includes("Disallow: /"), "preview robots.txt must disallow");
+  const feed = await (await fetch(BASE + "/experiences.json")).json();
+  check(feed.experiences?.length === 9 && feed.status.startsWith("draft") && feed.experiences.every((e) => e.adBrief?.hooks?.length), "experiences.json feed for ad agents");
 
   for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
     const label = `${viewport.width}px`;
@@ -89,7 +91,35 @@ try {
     const html = await page.content();
     check(!html.includes("smoke-token"), `${label}: token leaked into the page`);
     check(!errors.length, `${label}: console/page errors: ${errors.join(" | ")}`);
+    // Experience journey: catalogue -> detail -> quote with the experience, add-ons and a friend's referral code.
+    await page.goto(BASE + "/experiences");
+    check((await page.locator(".exp-row").count()) === 9, `${label}: 9 experiences listed`);
+    check((await over()) <= 1, `${label}: experiences page overflows sideways`);
+    await page.getByRole("link", { name: /Quince Royal/ }).click();
+    await page.getByRole("heading", { level: 1, name: "Quince Royal" }).waitFor();
+    if (viewport.width > 1000) await page.screenshot({ path: "smoke-experience.png", fullPage: true });
+    await page.getByRole("link", { name: "Request Quince Royal" }).click();
+    await page.waitForURL(/experience=quince-royal/);
+    await page.goto(page.url() + "&ref=mari-7q2k");
+    check(await page.locator(".picked-name", { hasText: "Quince Royal" }).isVisible(), `${label}: experience banner missing`);
+    check((await page.getByLabel("Occasion", { exact: true }).inputValue()) === "quinceanera", `${label}: occasion not prefilled from experience`);
+    check((await page.getByLabel(/Referral code/).inputValue()) === "MARI7Q2K", `${label}: referral code not prefilled`);
+    await page.getByLabel(/Red carpet arrival/).check();
+    await page.getByLabel(/Decor in your colors/).check();
+    const d2 = new Date(); d2.setDate(d2.getDate() + 120);
+    await page.getByLabel("Date", { exact: true }).fill(d2.toISOString().slice(0, 10));
+    await page.getByLabel("Your name").fill("Sofia Test");
+    await page.getByLabel("Phone").fill("312-555-0142");
+    await page.getByLabel(/I agree that Grind Time/).check();
+    if (viewport.width > 1000) await page.screenshot({ path: "smoke-quote-experience.png", fullPage: true });
+    await page.waitForTimeout(3100);
+    await page.getByRole("button", { name: "Request my quote" }).click();
+    await page.getByText("GT-261205-SMOKE").waitFor();
+    const sent2 = received.at(-1).body.p_payload;
+    check(sent2.package_key === "quince-royal" && sent2.referral_code === "MARI7Q2K" && sent2.event_type === "quinceanera", `${label}: experience/referral not sent: ${JSON.stringify(sent2)}`);
+    check(JSON.stringify(sent2.add_ons) === JSON.stringify(["red_carpet", "decor"]), `${label}: add-ons not sent: ${JSON.stringify(sent2.add_ons)}`);
     console.log(`ok  ${label}: home, prefill, validation, submit -> Porter`);
+    console.log(`ok  ${label}: experiences -> Quince Royal -> quote with add-ons and referral -> Porter`);
     await page.close();
   }
 } finally {

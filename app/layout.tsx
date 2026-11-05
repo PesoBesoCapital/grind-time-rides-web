@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <strong>Grind Time Rides</strong>
             </Link>
             <nav className="nav" aria-label="Main">
+              <Link href="/experiences">Experiences</Link>
               <Link href="/#fleet">Fleet</Link>
               <Link href="/#services">Services</Link>
               <Link href="/quote">Get a quote</Link>

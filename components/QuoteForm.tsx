@@ -1,12 +1,13 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { EVENT_OPTIONS, SERVICE_OPTIONS } from "@/lib/catalog";
+import { ADD_ONS, findExperience, type AddOn } from "@/lib/experiences";
 import { CONSENT_TEXT, MARKETING_TEXT, todayInChicago, validateQuote, type FieldErrors, type QuoteInput } from "@/lib/quote";
 
 const empty: QuoteInput = {
   service: "", event_type: "", event_date: "", start_time: "", hours: "", passengers: "", pickup_location: "", dropoff_location: "",
   contact_name: "", contact_phone: "", contact_email: "", preferred_contact: "text", notes: "", referral_source: "",
-  consent_contact: false, consent_marketing: false,
+  consent_contact: false, consent_marketing: false, package_key: "", add_ons: [], referral_code: "",
 };
 
 function newKey() {
@@ -80,10 +81,19 @@ export function QuoteForm({ initial }: { initial: Partial<QuoteInput> }) {
   }
 
   const Err = ({ k }: { k: keyof QuoteInput }) => (err(k) ? <p className="err" id={`${k}-err`}>{err(k)}</p> : null);
+  const experience = v.package_key ? findExperience(v.package_key) : undefined;
+  const toggleAddOn = (a: AddOn) => set("add_ons", v.add_ons.includes(a) ? v.add_ons.filter((x) => x !== a) : [...v.add_ons, a]);
 
   return (
     <form className="ticket ticket-form" onSubmit={submit} noValidate aria-labelledby="qf-title">
       <h2 id="qf-title" className="sr-only">Quote request</h2>
+      {experience && <div className="picked">
+        <p className="picked-label">Experience</p>
+        <p className="picked-name">{experience.name}</p>
+        <p>{experience.tagline}</p>
+        <button type="button" className="link-btn" onClick={() => set("package_key", "")}>Remove, I'll build my own</button>
+      </div>}
+      <Err k="package_key" />
       <fieldset>
         <legend>The trip</legend>
         <div className="ticket-grid">
@@ -124,6 +134,20 @@ export function QuoteForm({ initial }: { initial: Partial<QuoteInput> }) {
             <Err k="hours" />
           </div>
         </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Extras</legend>
+        <p className="opt fieldset-note">Optional. Pick anything you'd like priced into your quote.</p>
+        <div className="addons">
+          {ADD_ONS.map((a) => (
+            <label key={a.key} className={"addon" + (v.add_ons.includes(a.key) ? " on" : "") + (experience?.suggestedAddOns.includes(a.key) ? " suggested" : "")}>
+              <input type="checkbox" checked={v.add_ons.includes(a.key)} onChange={() => toggleAddOn(a.key)} />
+              <span><strong>{a.label}</strong>{experience?.suggestedAddOns.includes(a.key) ? " · popular with this experience" : ""}<br /><span className="opt">{a.line}</span></span>
+            </label>
+          ))}
+        </div>
+        <Err k="add_ons" />
       </fieldset>
 
       <fieldset>
@@ -172,7 +196,12 @@ export function QuoteForm({ initial }: { initial: Partial<QuoteInput> }) {
             </fieldset>
             <Err k="preferred_contact" />
           </div>
-          <div className="field full">
+          <div className="field">
+            <label htmlFor="q-referral_code">Referral code <span className="opt">(optional)</span></label>
+            <input id="q-referral_code" maxLength={20} autoComplete="off" value={v.referral_code} onChange={(e) => set("referral_code", e.target.value.toUpperCase())} {...aria("referral_code")} />
+            <Err k="referral_code" />
+          </div>
+          <div className="field">
             <label htmlFor="q-referral_source">How did you hear about us? <span className="opt">(optional)</span></label>
             <input id="q-referral_source" maxLength={120} placeholder="A friend, TikTok, Google…" value={v.referral_source} onChange={(e) => set("referral_source", e.target.value)} />
           </div>

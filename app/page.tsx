@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FLEET, SERVICES } from "@/lib/catalog";
+import { EXPERIENCES, TIER_LABEL, type Tier } from "@/lib/experiences";
 import { BUSINESS } from "@/lib/site";
 import { TicketStart } from "@/components/TicketStart";
 
@@ -14,6 +15,28 @@ export default function Home() {
             <p className="hero-lede">Party buses, stretch limousines, luxury SUVs, DJ and valet for weddings, proms, birthdays, corporate travel and airport runs across Chicagoland.</p>
           </div>
           <TicketStart />
+        </div>
+      </section>
+
+      <section className="section" id="experiences" aria-labelledby="exp-title">
+        <div className="wrap">
+          <div className="section-head">
+            <h2 id="exp-title">Pick your night</h2>
+            <p>VIP to just-for-fun: start from an experience and we'll tailor the rest. <Link href="/experiences">See all experiences</Link></p>
+          </div>
+          <div className="tiers">
+            {(["signature", "celebration", "fun"] as Tier[]).map((t) => (
+              <div key={t} className={"tier tier-" + t}>
+                <h3>{TIER_LABEL[t].name}</h3>
+                <p>{TIER_LABEL[t].line}</p>
+                <ul>
+                  {EXPERIENCES.filter((e) => e.tier === t).map((e) => (
+                    <li key={e.slug}><Link href={`/experiences/${e.slug}`}>{e.name}</Link></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

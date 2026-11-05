@@ -1,6 +1,9 @@
 // Quote request validation shared by the form (instant feedback) and the API route (the real check).
 // Mirrors the rules Porter enforces in porter_intake_quote_request so customers see clear errors early.
 import { EVENT_KEYS, SERVICE_KEYS } from "./catalog";
+import { ADD_ONS, EXPERIENCE_KEYS, type AddOn } from "./experiences";
+
+const ADD_ON_KEYS = ADD_ONS.map((a) => a.key) as string[];
 
 export const CONSENT_TEXT =
   "I agree that Grind Time Enterprise may call, text or email me about this quote request. Message and data rates may apply.";
@@ -23,6 +26,9 @@ export type QuoteInput = {
   referral_source: string;
   consent_contact: boolean;
   consent_marketing: boolean;
+  package_key: string;
+  add_ons: AddOn[];
+  referral_code: string;
 };
 
 export type FieldErrors = Partial<Record<keyof QuoteInput, string>>;
@@ -66,6 +72,9 @@ export function readQuoteInput(body: Record<string, unknown>): QuoteInput {
     referral_source: str(body.referral_source, 120),
     consent_contact: body.consent_contact === true,
     consent_marketing: body.consent_marketing === true,
+    package_key: str(body.package_key, 40).toLowerCase(),
+    add_ons: Array.isArray(body.add_ons) ? ([...new Set(body.add_ons.filter((x): x is string => typeof x === "string").map((x) => x.toLowerCase()))].slice(0, 6) as AddOn[]) : [],
+    referral_code: str(body.referral_code, 20).toUpperCase().replace(/[^A-Z0-9]/g, ""),
   };
 }
 
@@ -89,6 +98,9 @@ export function validateQuote(q: QuoteInput, today = todayInChicago()): FieldErr
   if (q.preferred_contact === "email" && !q.contact_email) e.contact_email = "Add your email, or choose call or text.";
   if ((q.preferred_contact === "call" || q.preferred_contact === "text") && !q.contact_phone) e.contact_phone = "Add your phone number, or choose email.";
   if (!q.consent_contact) e.consent_contact = "We need your OK to contact you about this quote.";
+  if (q.package_key && !EXPERIENCE_KEYS.includes(q.package_key)) e.package_key = "Choose an experience from the list, or leave it blank.";
+  if (q.add_ons.some((a) => !ADD_ON_KEYS.includes(a))) e.add_ons = "One of the add-ons isn't available.";
+  if (q.referral_code && !/^[A-Z0-9]{4,12}$/.test(q.referral_code)) e.referral_code = "Referral codes are 4-12 letters and numbers.";
   return e;
 }
 
@@ -112,5 +124,8 @@ export function toPorterPayload(q: QuoteInput) {
     consent_contact: q.consent_contact,
     consent_marketing: q.consent_marketing,
     consent_text: q.consent_marketing ? `${CONSENT_TEXT} ${MARKETING_TEXT}` : CONSENT_TEXT,
+    package_key: q.package_key || null,
+    add_ons: q.add_ons,
+    referral_code: q.referral_code || null,
   };
 }

@@ -33,7 +33,17 @@ npm test               # validation + API route (Porter mocked)
 npm run build && npm run smoke   # full journey in a real browser against a fake Porter
 ```
 
+## Experiences (draft until Ryan approves each one)
+`lib/experiences.ts` is the single source for the experience pages (`/experiences`, `/experiences/<slug>`),
+the quote form (experience banner, add-ons) and **`/experiences.json`**: the brief feed for the Cesar OS ad agents
+(audience, hooks, booking season, channels, what ads must avoid). Tiers: **Signature** (VIP night, wedding day,
+airport & executive), **Celebrations** (Quince Royal, prom & homecoming safe ride), **Just for fun** (birthday bash,
+bachelor & bachelorette, night out, game day & concerts). No prices, capacities or reviews anywhere.
+
+Referral links: `/quote?ref=CODE` pre-fills a customer's referral code; Porter credits the referrer.
+
 ## Before launch (needs Ryan)
 - GTR monogram file (the header uses a text placeholder), vehicle photos, and capacities per vehicle.
 - Verified reviews only, with the "$10 off for a review" wording checked: discounts can't depend on the review being positive.
+- Approve each experience, its wording and the ad angles in `/experiences.json`; decide if referrals earn a reward.
 - Approve every line of copy. Then point grindtimerides.com to Vercel, keeping the old site as a rollback for 30 days.
