@@ -15,6 +15,16 @@ booking can be tied back later. Moovs stays the system of record; Porter is the 
 
 Set `QUOTE_MODE=porter` (server env, no rebuild) to use the site's own form posting to Porter instead. Off by default.
 
+## Anonymous demand counts
+
+The home page, each experience page and the quote page send one anonymous count per browser tab to
+`/api/demand`, which forwards it to Porter (`porter_record_site_demand`, migration 202611050008) with the
+same intake token. Porter's **Moovs pipeline** tab shows views and quote-page opens per experience.
+No cookies, ids, IPs, user agents or referral codes are sent; Global Privacy Control and Do Not Track
+are honored; crawlers and link previews are skipped. Counting runs only when `NEXT_PUBLIC_SITE_STAGE=live`
+(or `DEMAND_COUNTS=on` for testing), so preview traffic from the team isn't counted. The four
+`PORTER_*` variables below are needed for counting even in Moovs mode.
+
 ## How the Porter form works (QUOTE_MODE=porter)
 1. The customer fills the trip ticket at `/quote`. The form validates as they go.
 2. `POST /api/quote` (server): same-origin check, hidden-field and too-fast spam traps, full

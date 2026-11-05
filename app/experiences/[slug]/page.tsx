@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ADD_ONS, EXPERIENCES, findExperience, TIER_LABEL } from "@/lib/experiences";
+import { CountView } from "@/components/CountView";
 
 export function generateStaticParams() {
   return EXPERIENCES.map((e) => ({ slug: e.slug }));
@@ -18,6 +19,7 @@ export default async function ExperiencePage({ params }: { params: Promise<{ slu
   const addOns = ADD_ONS.filter((a) => e.suggestedAddOns.includes(a.key));
   return (
     <section className="exp-detail">
+      <CountView events={[{ event: "experience_view", package_key: e.slug }]} />
       <div className="wrap">
         <p className="crumb"><Link href="/experiences">Experiences</Link> / {TIER_LABEL[e.tier].name}</p>
         <h1>{e.name}</h1>
