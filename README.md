@@ -6,7 +6,16 @@ Quote requests go **server-side** to the Porter ops app (Project 001), where Ces
 **Status: preview.** Not live. Every page sends `noindex` and shows a preview banner until
 `NEXT_PUBLIC_SITE_STAGE=live` is set, which happens only after Ryan approves the launch.
 
-## How a quote flows
+## Where quote requests go
+**Default: Ryan's Moovs account** (Premium). `/quote` embeds his Moovs request form
+(`customer.moovs.app/grind-time-enterprise`), so every request lands in his Moovs **NEW** tab, where he prices,
+books and gets paid. When the visitor came from an experience page or a referral link, a short note above the
+form ("Experience: Quince Royal · Referral code: MARI7Q2K") asks them to paste it into the Moovs notes, so the
+booking can be tied back later. Moovs stays the system of record; Porter is the growth layer on top.
+
+Set `QUOTE_MODE=porter` (server env, no rebuild) to use the site's own form posting to Porter instead. Off by default.
+
+## How the Porter form works (QUOTE_MODE=porter)
 1. The customer fills the trip ticket at `/quote`. The form validates as they go.
 2. `POST /api/quote` (server): same-origin check, hidden-field and too-fast spam traps, full
    validation, then a call to Porter's `porter_intake_quote_request` with a secret intake token.

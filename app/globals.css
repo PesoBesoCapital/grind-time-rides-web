@@ -203,3 +203,11 @@ input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--er
   .exp-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }
 @media (max-width: 560px) { .addons { grid-template-columns: minmax(0, 1fr); } }
+
+/* Moovs request form */
+.moovs { min-width: 0; }
+.moovs-frame { display: block; width: 100%; min-height: 1150px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+.moovs-fallback { color: var(--muted); font-size: 15px; margin: 12px 0 0; }
+.handoff-ask { margin-top: 10px !important; font-size: 15px; }
+.handoff-note { font-weight: 700; color: #fff; user-select: all; margin: 4px 0 !important; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .moovs-frame { min-height: 1300px; } }

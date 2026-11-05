@@ -18,7 +18,7 @@ const porter = createServer((req, res) => {
 const PORTER = `http://127.0.0.1:${porter.address().port}`;
 const PORT = 3917;
 const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT)], {
-  env: { ...process.env, PORTER_SUPABASE_URL: PORTER, PORTER_SUPABASE_ANON_KEY: "anon", PORTER_INTAKE_SOURCE: "grindtimerides-web", PORTER_INTAKE_TOKEN: "smoke-token" },
+  env: { ...process.env, QUOTE_MODE: "porter", PORTER_SUPABASE_URL: PORTER, PORTER_SUPABASE_ANON_KEY: "anon", PORTER_INTAKE_SOURCE: "grindtimerides-web", PORTER_INTAKE_TOKEN: "smoke-token" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 const BASE = `http://localhost:${PORT}`;
@@ -122,6 +122,42 @@ try {
     console.log(`ok  ${label}: experiences -> Quince Royal -> quote with add-ons and referral -> Porter`);
     await page.close();
   }
+  // ---- Moovs mode (the default): /quote embeds Ryan's Moovs request form ----
+  app.kill();
+  const PORT2 = 3918, BASE2 = `http://localhost:${PORT2}`;
+  const app2 = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT2)], { env: { ...process.env, QUOTE_MODE: "" }, stdio: "ignore" });
+  try {
+    for (let i = 0; i < 60; i++) { try { if ((await fetch(BASE2)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
+    const csp = (await fetch(BASE2 + "/quote")).headers.get("content-security-policy") ?? "";
+    check(csp.includes("frame-src https://customer.moovs.app") && csp.includes("frame-ancestors 'none'"), "CSP must allow exactly the Moovs frame");
+    for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
+      const label = `moovs @ ${viewport.width}px`;
+      const page = await browser.newPage({ viewport });
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      let framed = false;
+      await page.route("https://customer.moovs.app/**", (route) => { framed = true; return route.fulfill({ status: 200, contentType: "text/html", body: "<html><body><h1>Moovs request form (stand-in)</h1></body></html>" }); });
+      await page.goto(BASE2 + "/experiences/quince-royal");
+      await page.getByRole("link", { name: "Request Quince Royal" }).click();
+      await page.waitForURL(/experience=quince-royal/);
+      await page.goto(page.url() + "&ref=mari-7q2k");
+      const frame = page.locator("iframe.moovs-frame");
+      await frame.waitFor();
+      check((await frame.getAttribute("src")) === "https://customer.moovs.app/grind-time-enterprise/iframe", `${label}: iframe src`);
+      await page.frameLocator("iframe.moovs-frame").getByText("Moovs request form (stand-in)").waitFor();
+      check(framed, `${label}: Moovs frame never requested`);
+      check((await page.locator("#handoff-note").textContent()) === "Experience: Quince Royal · Referral code: MARI7Q2K", `${label}: handoff note`);
+      check((await page.getByRole("link", { name: "Open the booking form in a new tab" }).getAttribute("href")) === "https://customer.moovs.app/grind-time-enterprise/request/new", `${label}: fallback link`);
+      check((await page.locator("form.ticket-form").count()) === 0, `${label}: Porter form must be off in Moovs mode`);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      check(overflow <= 1, `${label}: sideways overflow`);
+      check(!errors.length, `${label}: errors: ${errors.join(" | ")}`);
+      await page.screenshot({ path: `smoke-moovs-${viewport.width}.png`, fullPage: false });
+      console.log(`ok  ${label}: experience -> quote page embeds Ryan's Moovs form with the hand-off note`);
+      await page.close();
+    }
+  } finally { app2.kill(); }
 } finally {
   await browser.close();
   app.kill();

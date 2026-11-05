@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { QuoteForm } from "@/components/QuoteForm";
-import { BUSINESS } from "@/lib/site";
+import { BUSINESS, quoteMode } from "@/lib/site";
+import { MoovsRequest } from "@/components/MoovsRequest";
+import { buildHandoff, handoffNote } from "@/lib/handoff";
 import { EVENT_KEYS, SERVICE_KEYS } from "@/lib/catalog";
 import { findExperience } from "@/lib/experiences";
 
@@ -22,6 +24,22 @@ export default async function QuotePage({ searchParams }: { searchParams: Search
     event_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     passengers: /^\d{1,3}$/.test(pax) ? pax : "",
   };
+  if (quoteMode() === "moovs") {
+    const h = buildHandoff({ experience: one(sp.experience), addons: one(sp.addons), ref: one(sp.ref), event: one(sp.event), date, passengers: pax });
+    const summary = [h.occasion, h.date, h.guests && `${h.guests} guests`].filter((x): x is string => !!x);
+    return (
+      <section className="quote-page">
+        <div className="wrap">
+          <div className="quote-aside">
+            <h1>Get a quote</h1>
+            <p>Tell us about the trip and we&apos;ll come back with availability and a price. Requests go straight to the Grind Time booking team.</p>
+            <p>Planning something last-minute? Call or text <a href={`tel:${BUSINESS.phoneE164}`}>{BUSINESS.phoneDisplay}</a>.</p>
+          </div>
+          <MoovsRequest note={handoffNote(h)} summary={summary} />
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="quote-page">
       <div className="wrap">
